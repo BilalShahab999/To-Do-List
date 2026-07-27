@@ -1,5 +1,5 @@
 // ---- State ----
-let tasks = [];
+let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
 
 // ---- DOM refs ----
 const taskInput    = document.getElementById('taskInput');
@@ -7,6 +7,15 @@ const addBtn       = document.getElementById('addBtn');
 const taskList     = document.getElementById('taskList');
 const totalCount   = document.getElementById('totalCount');
 const deleteAllBtn = document.getElementById('deleteAllBtn');
+
+// ---- Storage helpers ----
+function saveToStorage() {
+  localStorage.setItem('tasks', JSON.stringify(tasks));
+}
+
+function clearStorage() {
+  localStorage.removeItem('tasks');
+}
 
 // ---- Render ----
 function render() {
@@ -21,19 +30,20 @@ function render() {
       </div>
     `;
   } else {
-    tasks.forEach((task, index) => {
+    tasks.forEach((task) => {
       const item = document.createElement('div');
       item.className = 'flex items-center justify-between bg-slate-700 rounded-lg px-3 py-2 group animate-[fadeIn_0.15s_ease-out]';
 
+      // CHANGED: data-id instead of data-index
       item.innerHTML = `
         <div class="flex items-center gap-3 flex-1 min-w-0">
           <input type="checkbox" ${task.done ? 'checked' : ''}
-            class="w-4 h-4 accent-indigo-600 cursor-pointer" data-index="${index}" data-action="toggle">
+            class="w-4 h-4 accent-indigo-600 cursor-pointer" data-id="${task.id}" data-action="toggle">
           <span class="truncate text-white ${task.done ? 'line-through text-slate-500' : ''}">
             ${task.text}
           </span>
         </div>
-        <button data-index="${index}" data-action="delete"
+        <button data-id="${task.id}" data-action="delete"
           class="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition ml-2">
           ✕
         </button>
@@ -46,30 +56,44 @@ function render() {
 }
 
 // ---- Actions ----
+
+// ADD: give every new task a unique id
 function addTask() {
   const text = taskInput.value.trim();
   if (!text) return;
-  tasks.push({
-     text, 
-     done: false
-     });
+
+  const newTask = {
+    id: crypto.randomUUID(),   // <-- unique id generated here
+    text: text,
+    done: false
+  };
+
+  tasks.push(newTask);
   taskInput.value = '';
+  saveToStorage();
   render();
 }
 
-function toggleTask(index) {
-  tasks[index].done = !tasks[index].done;
+// TOGGLE: find the task by id, not by position
+function toggleTask(id) {
+  const task = tasks.find(t => t.id === id);
+  if (task) task.done = !task.done;
+  saveToStorage();
   render();
 }
 
-function deleteTask(index) {
-  tasks.splice(index, 1);
+// DELETE ONE: filter out the task matching this id
+function deleteTask(id) {
+  tasks = tasks.filter(t => t.id !== id);
+  saveToStorage();
   render();
 }
 
+// DELETE ALL: unchanged, still wipes everything
 function deleteAll() {
   if (tasks.length === 0) return;
   tasks = [];
+  clearStorage();
   render();
 }
 
@@ -80,11 +104,12 @@ taskInput.addEventListener('keydown', (e) => {
 });
 deleteAllBtn.addEventListener('click', deleteAll);
 
+// CHANGED: read data-id instead of data-index
 taskList.addEventListener('click', (e) => {
   const action = e.target.dataset.action;
-  const index = e.target.dataset.index;
-  if (action === 'toggle') toggleTask(Number(index));
-  if (action === 'delete') deleteTask(Number(index));
+  const id = e.target.dataset.id;
+  if (action === 'toggle') toggleTask(id);
+  if (action === 'delete') deleteTask(id);
 });
 
 // ---- Init ----
